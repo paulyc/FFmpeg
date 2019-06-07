@@ -2940,7 +2940,7 @@ static int mov_read_stts(MOVContext *c, AVIOContext *pb, MOVAtom atom)
 
     if (duration > 0 &&
         duration <= INT64_MAX - sc->duration_for_fps &&
-        total_sample_count <= INT64_MAX - sc->nb_frames_for_fps
+        total_sample_count <= INT_MAX - sc->nb_frames_for_fps
     ) {
         sc->duration_for_fps  += duration;
         sc->nb_frames_for_fps += total_sample_count;
@@ -4778,7 +4778,7 @@ static int mov_read_trun(MOVContext *c, AVIOContext *pb, MOVAtom atom)
     av_log(c->fc, AV_LOG_TRACE, "first sample flags 0x%x\n", first_sample_flags);
 
     // realloc space for new index entries
-    if((unsigned)st->nb_index_entries + entries >= UINT_MAX / sizeof(AVIndexEntry)) {
+    if((uint64_t)st->nb_index_entries + entries >= UINT_MAX / sizeof(AVIndexEntry)) {
         entries = UINT_MAX / sizeof(AVIndexEntry) - st->nb_index_entries;
         av_log(c->fc, AV_LOG_ERROR, "Failed to add index entry\n");
     }
@@ -4897,7 +4897,7 @@ static int mov_read_trun(MOVContext *c, AVIOContext *pb, MOVAtom atom)
         sc->data_size += sample_size;
 
         if (sample_duration <= INT64_MAX - sc->duration_for_fps &&
-            1 <= INT64_MAX - sc->nb_frames_for_fps
+            1 <= INT_MAX - sc->nb_frames_for_fps
         ) {
             sc->duration_for_fps += sample_duration;
             sc->nb_frames_for_fps ++;
@@ -6901,7 +6901,7 @@ static int mov_read_default(MOVContext *c, AVIOContext *pb, MOVAtom atom)
     return 0;
 }
 
-static int mov_probe(AVProbeData *p)
+static int mov_probe(const AVProbeData *p)
 {
     int64_t offset;
     uint32_t tag;
@@ -7872,6 +7872,7 @@ static int mov_seek_stream(AVFormatContext *s, AVStream *st, int64_t timestamp, 
     }
 
     /* adjust stsd index */
+    if (sc->chunk_count) {
     time_sample = 0;
     for (i = 0; i < sc->stsc_count; i++) {
         int64_t next = time_sample + mov_get_stsc_samples(sc, i);
@@ -7882,6 +7883,7 @@ static int mov_seek_stream(AVFormatContext *s, AVStream *st, int64_t timestamp, 
         }
         av_assert0(next == (int)next);
         time_sample = next;
+    }
     }
 
     return sample;
@@ -8004,5 +8006,5 @@ AVInputFormat ff_mov_demuxer = {
     .read_packet    = mov_read_packet,
     .read_close     = mov_read_close,
     .read_seek      = mov_read_seek,
-    .flags          = AVFMT_NO_BYTE_SEEK,
+    .flags          = AVFMT_NO_BYTE_SEEK | AVFMT_SEEK_TO_PTS,
 };
